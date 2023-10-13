@@ -5,6 +5,8 @@ import be.adaxisoft.bencode.BEncodedValue;
 
 import java.io.File;
 import java.io.FileInputStream;
+import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
 import java.util.Map;
 
 public class Main {
@@ -13,15 +15,15 @@ public class Main {
 
 
         try {
-            FileInputStream torrentStream = new FileInputStream(new File(args[0]));
+           Torrent t = new Torrent(args[0]);
 
-            BDecoder reader = new BDecoder(torrentStream);
+           System.out.println(new String(t.getInfoHash(), StandardCharsets.ISO_8859_1));
+           System.out.println(t.getAnnounceURL());
+           System.out.println(t.getTorrentKeys());
+           System.out.println(t.getLength());
 
-            Map<String, BEncodedValue> document = reader.decodeMap().getMap();
-
-            System.out.println(document.get("announce").getString());
-
-            System.out.println(document.get("info").getMap().keySet());
+           BittorrentClient client = new BittorrentClient(args[0]);
+           client.getPeers();
 
         } catch (Exception e) {
             e.printStackTrace();
