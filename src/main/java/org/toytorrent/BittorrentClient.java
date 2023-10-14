@@ -5,17 +5,23 @@ import be.adaxisoft.bencode.BEncodedValue;
 import be.adaxisoft.bencode.InvalidBEncodingException;
 import jdk.nashorn.internal.runtime.regexp.joni.ast.StringNode;
 
+import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
+import java.io.OutputStream;
+import java.net.InetSocketAddress;
+import java.net.Socket;
 import java.net.URLEncoder;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.security.NoSuchAlgorithmException;
 import java.util.*;
 
+
 public class BittorrentClient {
 
     Torrent torrent;
     Utils util;
+    Socket socket;
 
     BittorrentClient(String torrentFile) {
         torrent = new Torrent(torrentFile);
@@ -48,13 +54,13 @@ public class BittorrentClient {
         return torrent.getAnnounceURL();
     }
 
-    void getPeers() throws InvalidBEncodingException, Exception{
+    List<Peer> getPeers() throws InvalidBEncodingException, Exception{
         String url = getUrl();
         InputStream response = util.sendHTTPRequest(url, getParams());
         Map<String, BEncodedValue> decodedResponse = BDecoder.decode(response).getMap();
         byte[] peers = decodedResponse.get("peers").getBytes();
 
-        List<String> peersList = new ArrayList<>();
+        List<Peer> peersList = new ArrayList<>();
 
         for (int i = 0; i< peers.length; i += 6) {
             StringBuilder address = new StringBuilder();
@@ -62,18 +68,53 @@ public class BittorrentClient {
                 if (address.length() > 0) {
                     address.append(".");
                 }
-                if (j == i) {
+                if (peers[j] < 0) {
                     address.append("" + (256 +peers[j]));
                 } else {
                     address.append("" + peers[j]);
                 }
             }
-            String port = String.valueOf(65536 + (peers[i + 4] * 256 + peers[i + 5]));
-            peersList.add(String.format("%s:%s", address, port));
+            int port = 65536 + (peers[i + 4] * 256 + peers[i + 5]);
+            peersList.add(new Peer(address.toString(), port));
         }
+        return peersList;
+    }
 
-        System.out.println(peersList);
+    void peerHandShake() {
+        try {
+            List<Peer> peers = getPeers();
+            Peer peer1 = peers.get(1);
+            socket = new Socket(peer1.address, peer1.port);
+            OutputStream socketOut =  socket.getOutputStream();
+            socketOut.write(getHandShakeMsg());
 
+            InputStream socketIn = socket.getInputStream();
+            byte[] buf = new byte[2048];
+            socketIn.read(buf);
+            StringBuilder peerid = new StringBuilder();
+            for (int i = 48; i < 68;i++) {
+                peerid.append(String.format("%02x", buf[i]));
+            }
+            System.out.println(peerid);
+
+        } catch (Exception e ){
+            e.printStackTrace();
+        }
+    }
+
+    byte[] getHandShakeMsg() {
+        ByteArrayOutputStream handshakeMsg = null;
+        try {
+            handshakeMsg = new ByteArrayOutputStream();
+            handshakeMsg.write(19);
+            handshakeMsg.write("BitTorrent protocol".getBytes(), 0, 19);
+            handshakeMsg.write("00000000".getBytes(), 0, 8);
+            handshakeMsg.write(torrent.getInfoHash(), 0, 20);
+            handshakeMsg.write("12345678901234567890".getBytes(), 0, 20);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return handshakeMsg.toByteArray();
     }
     public void download()   {
        try {

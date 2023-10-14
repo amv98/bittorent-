@@ -18,12 +18,13 @@ public class Main {
            Torrent t = new Torrent(args[0]);
 
            System.out.println(new String(t.getInfoHash(), StandardCharsets.ISO_8859_1));
-           System.out.println(t.getAnnounceURL());
+           System.out.println(t.getInfoMap().keySet());
+           System.out.println(t.getPieceLength());
            System.out.println(t.getTorrentKeys());
            System.out.println(t.getLength());
 
            BittorrentClient client = new BittorrentClient(args[0]);
-           client.getPeers();
+           client.peerHandShake();
 
         } catch (Exception e) {
             e.printStackTrace();

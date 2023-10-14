@@ -64,6 +64,10 @@ public class Torrent {
         return this.torrent.keySet();
     }
 
+    int getPieceLength() throws InvalidBEncodingException {
+        return info.get("piece length").getInt();
+    }
+
     byte[] getInfoHash() throws NoSuchAlgorithmException, java.io.IOException {
         MessageDigest md = MessageDigest.getInstance("SHA-1");
         ByteArrayOutputStream bytestream = new ByteArrayOutputStream();
